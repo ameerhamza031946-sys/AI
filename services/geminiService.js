@@ -1,5 +1,5 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const getApiKey = () => process.env.GEMINI_API_KEY || 'demo-key';
+const getApiKey = () => process.env.GEMINI_API_KEY || process.env.OPENROUTER_API_KEY || 'demo-key';
 
 const MODEL_NAME = 'gemini-1.5-flash';
 
