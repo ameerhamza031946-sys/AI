@@ -11,7 +11,10 @@ router.post('/chat', async (req, res) => {
     const { messages = [], message } = req.body;
     if (!message) return res.status(400).json({ error: 'Message is required' });
 
-    const response = await geminiService.chat(messages, message);
+    // RAG: Fetch platform data to inject as context
+    const platformContext = getDashboardMetrics();
+
+    const response = await geminiService.chat(messages, message, platformContext);
     res.json({ response, timestamp: new Date().toISOString() });
   } catch (error) {
     res.status(500).json({ error: error.message });

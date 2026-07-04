@@ -5,9 +5,30 @@ const { dashboardKPIs, combinedTrends, airQualityData, healthcareData, trafficDa
 /**
  * GET /api/analytics/dashboard
  */
-router.get('/dashboard', (req, res) => {
+router.get('/dashboard', async (req, res) => {
+  let liveTemp = 34.5;
+  let livePm25 = 102.3;
+  
+  try {
+    const weatherRes = await fetch('https://api.open-meteo.com/v1/forecast?latitude=31.5497&longitude=74.3436&current=temperature_2m');
+    const weatherData = await weatherRes.json();
+    if (weatherData.current?.temperature_2m) liveTemp = weatherData.current.temperature_2m;
+
+    const aqRes = await fetch('https://air-quality-api.open-meteo.com/v1/air-quality?latitude=31.5497&longitude=74.3436&current=pm2_5');
+    const aqData = await aqRes.json();
+    if (aqData.current?.pm2_5) livePm25 = aqData.current.pm2_5;
+  } catch (e) {
+    console.error("Live API fetch failed, using fallbacks:", e.message);
+  }
+
+  const dynamicKPIs = { ...dashboardKPIs };
+  if (dynamicKPIs.airQuality) {
+    dynamicKPIs.airQuality.current = livePm25;
+    dynamicKPIs.airQuality.label = `Live PM2.5 (Lahore: ${liveTemp}°C)`;
+  }
+
   res.json({
-    kpis: dashboardKPIs,
+    kpis: dynamicKPIs,
     trends: combinedTrends,
     distribution: {
       health: [
@@ -24,7 +45,7 @@ router.get('/dashboard', (req, res) => {
       ],
     },
     recentAlerts: [
-      { id: 1, type: 'Critical', message: 'Shahdara AQI 214 — PM2.5 at 102 μg/m³, 5x above WHO limit', time: '12 mins ago', category: 'Air Quality' },
+      { id: 1, type: 'Critical', message: `Shahdara AQI Alert — PM2.5 at ${livePm25} μg/m³`, time: 'Live Update', category: 'Air Quality' },
       { id: 2, type: 'Critical', message: 'Karachi hospitals projected at 103% capacity within 48 hours', time: '1 hour ago', category: 'Healthcare' },
       { id: 3, type: 'Warning',  message: 'Murree Road 92% congested — avg speed 12 km/h', time: '2 hours ago', category: 'Traffic' },
       { id: 4, type: 'Warning',  message: 'Data Gunj district risk score 91/100 — highest in city', time: '3 hours ago', category: 'Safety' },
@@ -32,7 +53,7 @@ router.get('/dashboard', (req, res) => {
     aiSummary: {
       headline: 'Community at Elevated Risk — Immediate Action Required',
       insights: [
-        'Air quality in 2 of 8 districts is at Critical level — Shahdara (AQI 214) and Gulberg (AQI 187) require urgent emission controls.',
+        `Live Air Quality in Lahore is showing PM2.5 levels of ${livePm25} μg/m³ at ${liveTemp}°C.`,
         'Healthcare demand forecast shows hospitals at 100% capacity within 48 hours if dengue trend continues.',
         'Traffic congestion on Murree Road has worsened 23% compared to last month — alternate routing needed.',
       ],

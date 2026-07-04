@@ -18,6 +18,22 @@ You specialize in:
 - Economic development and poverty indicators
 - Education access and quality metrics
 
+CRITICAL INSTRUCTION FOR LANGUAGE:
+If the user communicates in Roman Urdu (e.g., "pani nahi a raha", "kya karna chahiye"), YOU MUST respond fluently and naturally in Roman Urdu as well. Do not reply in English if the user speaks Roman Urdu. Respond in the same language and script the user uses. Be helpful, practical, and empathetic in your Roman Urdu responses.
+
+CRITICAL INSTRUCTION FOR DECISION INTELLIGENCE:
+If the user reports a community issue or problem (e.g. traffic, water shortage, pollution, crime), YOU MUST append a structured JSON block at the very end of your response enclosed in \`\`\`json ... \`\`\` with the following exact keys:
+{
+  "issueDetected": true,
+  "issueSummary": "Short summary",
+  "similarComplaints": "Estimated number of similar issues (e.g. 15)",
+  "riskLevel": "Low/Medium/High/Critical",
+  "recommendation": "Primary actionable recommendation",
+  "responsibleDepartment": "Name of govt dept",
+  "priority": "Low/Medium/High/Urgent",
+  "confidenceScore": "percentage (e.g., 92%)"
+}
+
 Always provide:
 1. Clear, actionable insights
 2. Data-driven recommendations
@@ -50,7 +66,7 @@ async function callAIService(systemPrompt, userPrompt, history = []) {
     messages.push({ role: 'user', content: userPrompt });
     
     try {
-      console.log("Trying fast free model: liquid/lfm-2.5-1.2b-instruct:free...");
+      console.log("Trying google/gemini-2.5-flash model...");
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -60,7 +76,7 @@ async function callAIService(systemPrompt, userPrompt, history = []) {
           'X-Title': 'Smart Community Decision Intelligence Platform'
         },
         body: JSON.stringify({
-          model: 'liquid/lfm-2.5-1.2b-instruct:free',
+          model: 'google/gemini-2.5-flash',
           messages: messages,
           temperature: 0.7,
           max_tokens: 1024
@@ -73,7 +89,7 @@ async function callAIService(systemPrompt, userPrompt, history = []) {
       }
       return data.choices[0].message.content;
     } catch (error) {
-      console.log("Fast model failed, falling back to openrouter/free router. Error was:", error.message);
+      console.log("Gemini 2.5 flash model failed, falling back to openrouter/auto. Error was:", error.message);
       try {
         const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
@@ -84,7 +100,7 @@ async function callAIService(systemPrompt, userPrompt, history = []) {
             'X-Title': 'Smart Community Decision Intelligence Platform'
           },
           body: JSON.stringify({
-            model: 'openrouter/free',
+            model: 'openrouter/auto',
             messages: messages,
             temperature: 0.7,
             max_tokens: 1024
@@ -132,9 +148,19 @@ async function callAIService(systemPrompt, userPrompt, history = []) {
 /**
  * Send a chat message to Gemini
  */
-async function chat(messages, userMessage) {
+async function chat(messages, userMessage, platformContext = null) {
   try {
-    return await callAIService(SYSTEM_PROMPT, userMessage, messages);
+    let dynamicPrompt = SYSTEM_PROMPT;
+    
+    // RAG Implementation: Inject live platform context
+    if (platformContext) {
+      dynamicPrompt += `\n\n[REAL-TIME PLATFORM DATA CONTEXT]\n`;
+      dynamicPrompt += `Here is the current live data from the Decision Intelligence Platform:\n`;
+      dynamicPrompt += JSON.stringify(platformContext, null, 2);
+      dynamicPrompt += `\nUse this real-time platform data to inform your decisions, answer queries, and provide accurate, context-aware recommendations.`;
+    }
+
+    return await callAIService(dynamicPrompt, userMessage, messages);
   } catch (error) {
     console.error('Gemini chat error:', error);
     throw new Error('AI service temporarily unavailable. Please try again.');
